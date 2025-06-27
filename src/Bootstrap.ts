@@ -3,11 +3,27 @@ import type { IBoot } from "./Interfaces/IBoot";
 import { CommandHandler } from "./Handler/CommandHandler";
 import { EventHandler } from "./Handler/EventHandler";
 import { config } from "./Config/Config";
+import type { Logger } from "./Logger/Index";
+import { LoggerFactory } from "./Logger/LoggerFactory";
+import { LogTarget } from "./Logger/Types";
+import {
+  PerformanceMonitor,
+  PerformanceMonitorAdvanced,
+} from "./Utils/Performance";
 
+@PerformanceMonitor()
 export class Bootstrap implements IBoot {
   private client: Client | undefined;
   private commandManager: CommandHandler | undefined;
   private eventManager: EventHandler | undefined;
+  private logger: Logger;
+
+  constructor() {
+    this.logger = LoggerFactory.create("Bootstrap", [
+      LogTarget.CONSOLE,
+      LogTarget.FILE,
+    ]);
+  }
 
   public async onEnable(): Promise<void> {
     try {
@@ -40,7 +56,7 @@ export class Bootstrap implements IBoot {
           interaction.commandName
         );
         if (!command) {
-          console.error(
+          this.logger.error(
             `No command matching ${interaction.commandName} was found.`
           );
           return;
@@ -49,7 +65,8 @@ export class Bootstrap implements IBoot {
         try {
           await command.execute(interaction);
         } catch (error) {
-          console.error("Error executing command:", error);
+          const err = error instanceof Error ? error : new Error(String(error));
+          this.logger.error("Error executing command:", err);
           const reply = {
             content: "There was an error while executing this command!",
             ephemeral: true,
@@ -65,14 +82,15 @@ export class Bootstrap implements IBoot {
 
       // Ready Event
       this.client.once("ready", async (client) => {
-        console.log(`Ready! Logged in as ${client.user.tag}`);
+        this.logger.info(`Ready! Logged in as ${client.user.tag}`);
         await this.commandManager!.deployCommands();
       });
 
       // Bot anmelden
       await this.client.login(config.token);
     } catch (error) {
-      console.error("Error during bot initialization:", error);
+      const err = error instanceof Error ? error : new Error(String(error));
+      this.logger.error("Error during bot initialization:", err);
       throw error;
     }
   }
@@ -80,7 +98,7 @@ export class Bootstrap implements IBoot {
   public async onDisable(): Promise<void> {
     if (this.client) {
       this.client.destroy();
-      console.log("Bot disconnected successfully");
+      this.logger.info("Bot disconnected successfully");
     }
   }
 

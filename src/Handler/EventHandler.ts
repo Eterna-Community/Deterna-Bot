@@ -1,6 +1,12 @@
 import type { Client } from "discord.js";
 import type { IEvent } from "../Interfaces/ICommand";
+import { Glob } from "bun";
+import {
+  PerformanceMonitor,
+  PerformanceMonitorWithStats,
+} from "../Utils/Performance";
 
+@PerformanceMonitor()
 export class EventHandler {
   private client: Client;
   public events: IEvent[];
@@ -11,8 +17,13 @@ export class EventHandler {
   }
 
   public async loadEvents(): Promise<void> {
-    /*
-    const eventFiles = glob.sync('./src/Modules/Events/*.ts');
+    const glob = new Glob("*.{ts}");
+    const eventFiles = await Array.fromAsync(
+      glob.scan({
+        cwd: "./src/Modules/Events",
+      })
+    );
+
     for (const file of eventFiles) {
       const event = await import(file);
       if (event.default) {
@@ -20,7 +31,6 @@ export class EventHandler {
         this.registerEvent(event.default);
       }
     }
-    */
   }
 
   private registerEvent(event: IEvent): void {
