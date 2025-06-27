@@ -1,0 +1,184 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "./generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Log {
+  id        String   @id
+  type      LogType
+  message   String
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([type])
+}
+
+model Message {
+  id        String     @id
+  authorId  String
+  channelId String
+  messageId String     @unique
+  content   String?
+  ticketId  String?
+  createdAt DateTime   @default(now())
+  updatedAt DateTime
+  User      User       @relation(fields: [authorId], references: [id])
+  Ticket    Ticket?    @relation(fields: [ticketId], references: [id])
+  Reaction  Reaction[]
+
+  @@index([authorId])
+  @@index([channelId])
+  @@index([ticketId])
+}
+
+model ModLog {
+  id                            String    @id
+  targetId                      String
+  moderatorId                   String
+  type                          ModAction
+  reason                        String?
+  duration                      Int?
+  active                        Boolean   @default(true)
+  createdAt                     DateTime  @default(now())
+  updatedAt                     DateTime
+  expiresAt                     DateTime?
+  User_ModLog_moderatorIdToUser User      @relation("ModLog_moderatorIdToUser", fields: [moderatorId], references: [id])
+  User_ModLog_targetIdToUser    User      @relation("ModLog_targetIdToUser", fields: [targetId], references: [id])
+
+  @@index([active])
+  @@index([targetId])
+  @@index([type])
+}
+
+model Reaction {
+  id        String   @id
+  messageId String
+  userId    String
+  emoji     String
+  createdAt DateTime @default(now())
+  Message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  User      User     @relation(fields: [userId], references: [id])
+
+  @@unique([messageId, userId, emoji])
+  @@index([messageId])
+  @@index([userId])
+}
+
+model ReactionRole {
+  id        String   @id
+  messageId String
+  channelId String
+  emoji     String
+  roleId    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime
+
+  @@unique([messageId, emoji])
+  @@index([messageId])
+}
+
+model Ticket {
+  id                          String          @id
+  creatorId                   String
+  handlerId                   String?
+  channelId                   String
+  subject                     String?
+  status                      TicketStatus    @default(OPEN)
+  reason                      String?
+  createdAt                   DateTime        @default(now())
+  updatedAt                   DateTime
+  closedAt                    DateTime?
+  categoryId                  String?
+  Message                     Message[]
+  TicketCategory              TicketCategory? @relation(fields: [categoryId], references: [id])
+  User_Ticket_creatorIdToUser User            @relation("Ticket_creatorIdToUser", fields: [creatorId], references: [id])
+  User_Ticket_handlerIdToUser User?           @relation("Ticket_handlerIdToUser", fields: [handlerId], references: [id])
+
+  @@index([categoryId])
+  @@index([creatorId])
+  @@index([status])
+}
+
+model TicketCategory {
+  id                String   @id
+  name              String
+  description       String?
+  emoji             String?
+  discordCategoryId String
+  supportRoleIds    String[]
+  color             String?
+  active            Boolean  @default(true)
+  sortOrder         Int      @default(0)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime
+  Ticket            Ticket[]
+}
+
+model TicketMenu {
+  id          String   @id
+  channelId   String
+  messageId   String
+  title       String?
+  description String?
+  categoryIds String[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime
+}
+
+model User {
+  id                              String        @id
+  username                        String?
+  discriminator                   String?
+  joinedAt                        DateTime?
+  lastSeen                        DateTime?
+  createdAt                       DateTime      @default(now())
+  updatedAt                       DateTime
+  Message                         Message[]
+  ModLog_ModLog_moderatorIdToUser ModLog[]      @relation("ModLog_moderatorIdToUser")
+  ModLog_ModLog_targetIdToUser    ModLog[]      @relation("ModLog_targetIdToUser")
+  Reaction                        Reaction[]
+  Ticket_Ticket_creatorIdToUser   Ticket[]      @relation("Ticket_creatorIdToUser")
+  Ticket_Ticket_handlerIdToUser   Ticket[]      @relation("Ticket_handlerIdToUser")
+  UserSettings                    UserSettings?
+}
+
+model UserSettings {
+  userId        String   @id
+  language      String   @default("de")
+  theme         String   @default("dark")
+  notifications Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime
+  User          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+enum LogType {
+  TICKET
+  MODLOG
+  ERROR
+  AUDIT
+  SYSTEM
+}
+
+enum ModAction {
+  WARN
+  KICK
+  BAN
+  MUTE
+  TIMEOUT
+  UNBAN
+  UNMUTE
+}
+
+enum TicketStatus {
+  OPEN
+  PENDING
+  CLOSED
+  ARCHIVED
+}

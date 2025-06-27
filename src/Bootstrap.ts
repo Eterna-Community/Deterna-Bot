@@ -10,6 +10,9 @@ import {
   PerformanceMonitor,
   PerformanceMonitorAdvanced,
 } from "./Utils/Performance";
+import { ServiceManager } from "./Services/manager";
+import type { BaseService } from "./Services";
+import { DatabaseService } from "./Services/Database/DatabaseService";
 
 @PerformanceMonitor()
 export class Bootstrap implements IBoot {
@@ -17,16 +20,22 @@ export class Bootstrap implements IBoot {
   private commandManager: CommandHandler | undefined;
   private eventManager: EventHandler | undefined;
   private logger: Logger;
+  private serviceManager: ServiceManager;
 
   constructor() {
     this.logger = LoggerFactory.create("Bootstrap", [
       LogTarget.CONSOLE,
       LogTarget.FILE,
     ]);
+
+    this.serviceManager = new ServiceManager();
   }
 
   public async onEnable(): Promise<void> {
     try {
+      // Init Our services
+      await this.registerServices();
+
       // Client initialisieren mit den nötigen Intents
       this.client = new Client({
         intents: [
@@ -91,7 +100,6 @@ export class Bootstrap implements IBoot {
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error));
       this.logger.error("Error during bot initialization:", err);
-      throw error;
     }
   }
 
@@ -107,5 +115,24 @@ export class Bootstrap implements IBoot {
       throw new Error("Client is not initialized");
     }
     return this.client;
+  }
+
+  private async registerServices(): Promise<void> {
+    try {
+      const promises: Promise<void>[] = [
+        this.serviceManager.register(new DatabaseService()),
+      ];
+
+      await Promise.allSettled(promises);
+
+      await this.serviceManager.start();
+    } catch (error) {
+      const err = error instanceof Error ? error : new Error(String(error));
+      this.logger.error("Error during service registration:", err);
+    }
+  }
+
+  public getServiceManager(): ServiceManager {
+    return this.serviceManager;
   }
 }

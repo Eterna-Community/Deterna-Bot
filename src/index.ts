@@ -5,12 +5,11 @@ import type { Logger } from "./Logger/Index";
 import { LoggerFactory } from "./Logger/LoggerFactory";
 import { LogTarget } from "./Logger/Types";
 
-let bootstrap: IBoot;
+export let bootstrap: IBoot = new Bootstrap();
 let logger: Logger = LoggerFactory.create("Main", [LogTarget.CONSOLE]);
 
 async function main() {
   try {
-    bootstrap = new Bootstrap();
     await bootstrap.onEnable();
   } catch (error) {
     console.error("Failed to start bot:", error);
