@@ -1,7 +1,12 @@
 import { Bootstrap } from "./Bootstrap";
+import readline from "readline";
 import type { IBoot } from "./Interfaces/IBoot";
+import type { Logger } from "./Logger/Index";
+import { LoggerFactory } from "./Logger/LoggerFactory";
+import { LogTarget } from "./Logger/Types";
 
 let bootstrap: IBoot;
+let logger: Logger = LoggerFactory.create("Main", [LogTarget.CONSOLE]);
 
 async function main() {
   try {
@@ -13,9 +18,26 @@ async function main() {
   }
 }
 
+// Make it input and Output
+const rl = readline.createInterface({
+  input: process.stdin,
+  output: process.stdout,
+});
+
+rl.on("line", (input: string) => {
+  const args = input.trim().split(" ");
+  const command = args.shift()?.toLowerCase();
+
+  if (command === "help") {
+    logger.info("Read the docs u moron");
+  } else if (command === "exit") {
+    process.exit(0);
+  }
+});
+
 // Graceful shutdown
 process.on("SIGINT", async () => {
-  console.log("Received SIGINT, shutting down gracefully...");
+  logger.info("Received SIGINT, shutting down gracefully...");
   if (bootstrap) {
     await bootstrap.onDisable();
   }
@@ -23,7 +45,7 @@ process.on("SIGINT", async () => {
 });
 
 process.on("SIGTERM", async () => {
-  console.log("Received SIGTERM, shutting down gracefully...");
+  logger.info("Received SIGTERM, shutting down gracefully...");
   if (bootstrap) {
     await bootstrap.onDisable();
   }
