@@ -126,9 +126,9 @@ export class Bootstrap implements IBoot {
       await Promise.allSettled(promises);
 
       await this.serviceManager.start();
-    } catch (error) {
+    } catch (error: any) {
       const err = error instanceof Error ? error : new Error(String(error));
-      this.logger.error("Error during service registration:", err);
+      this.logger.error(`Error during service registration:`, err);
     }
   }
 

@@ -15,7 +15,7 @@ export class LoggerFactory {
     minLevel: LogLevel.INFO,
     formatConfig: {
       colorized: true,
-      includeStack: false,
+      includeStack: true,
       dateFormat: "de-DE",
       timezone: "Europe/Berlin",
     },

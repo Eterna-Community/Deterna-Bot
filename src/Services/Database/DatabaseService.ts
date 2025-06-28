@@ -1,9 +1,9 @@
-import { PrismaClient } from "@prisma/client";
 import { BaseService } from "..";
 import type { ServiceConfig } from "../data";
 import type { Logger } from "../../Logger/Index";
 import { LoggerFactory } from "../../Logger/LoggerFactory";
 import { PerformanceMonitor } from "../../Utils/Performance";
+import { PrismaClient } from "../../../prisma/generated/prisma";
 
 @PerformanceMonitor()
 export class DatabaseService extends BaseService {
@@ -21,7 +21,7 @@ export class DatabaseService extends BaseService {
   constructor() {
     super();
     this.prisma = new PrismaClient({
-      log: ["query", "info", "warn", "error"],
+      log: ["error"],
     });
   }
 

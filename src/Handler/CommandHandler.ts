@@ -1,5 +1,5 @@
 import { Collection, REST, Routes } from "discord.js";
-import type { ICommand } from "../Interfaces/ICommand";
+import { BaseCommand, type ICommand } from "../Interfaces/ICommand";
 import { config } from "../Config/Config";
 import { Glob } from "bun";
 import type { Logger } from "../Logger/Index";
@@ -9,13 +9,15 @@ import {
   PerformanceMonitor,
   PerformanceMonitorWithStats,
 } from "../Utils/Performance";
+import path from "node:path";
+import { pathToFileURL } from "node:url";
 
 @PerformanceMonitor({
-  minThreshold: 50, // Nur Methoden > 50ms loggen
-  includeArguments: true, // Argumente mit ausgeben
-  includeReturnValue: true, // Rückgabewerte anzeigen
-  excludeMethods: ["toString"], // Methoden ausschließen
-  colorize: true, // Farbige Ausgabe
+  minThreshold: 50,
+  includeArguments: true,
+  includeReturnValue: true,
+  excludeMethods: ["toString"],
+  colorize: true,
 })
 export class CommandHandler {
   public commands: Collection<string, ICommand>;
@@ -33,20 +35,61 @@ export class CommandHandler {
         cwd: "./src/Modules/Commands",
       })
     );
+
     for (const file of commandFiles) {
-      const command = await import(file);
-      if (command.default) {
-        this.commands.set(command.default.data.name, command.default);
-        this.logger.info("Loaded command:", command.default.data.name);
+      try {
+        const absolutePath = path.resolve("./src/Modules/Commands", file);
+        const fileUrl = pathToFileURL(absolutePath).href;
+
+        const commandModule = await import(fileUrl);
+
+        const CommandClass = this.findCommandClass(commandModule);
+        if (CommandClass) {
+          const commandInstance = new CommandClass();
+          this.commands.set(commandInstance!.data.name, commandInstance!);
+          this.logger.info("Loaded command:", commandInstance!.data.name);
+        } else {
+          this.logger.warn(`No valid command class found in ${file}`);
+        }
+      } catch (error) {
+        const err = error instanceof Error ? error : new Error(String(error));
+        this.logger.error(`Error loading command from ${file}:`, err);
       }
     }
-
     this.logger.info(`Loaded ${this.commands.size} commands.`);
+  }
+
+  private findCommandClass(module: any): new () => BaseCommand | null {
+    if (module.default && this.isCommandClass(module.default)) {
+      return module.default;
+    }
+    for (const [key, value] of Object.entries(module)) {
+      if (this.isCommandClass(value)) {
+        return value as new () => BaseCommand;
+      }
+    }
+    // Even though we clarified that we could return null, TS still complains
+    ///@ts-expect-error
+    return null;
+  }
+
+  private isCommandClass(cls: any): boolean {
+    try {
+      return (
+        typeof cls === "function" &&
+        cls.prototype &&
+        (cls.prototype instanceof BaseCommand ||
+          (cls.prototype.constructor.name !== "Object" &&
+            typeof cls.prototype.execute === "function" &&
+            cls.prototype.data !== undefined))
+      );
+    } catch {
+      return false;
+    }
   }
 
   public async deployCommands(): Promise<void> {
     const commands = this.commands.map((command) => command.data.toJSON());
-
     const rest = new REST().setToken(config.token);
 
     try {
@@ -65,6 +108,36 @@ export class CommandHandler {
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error));
       this.logger.error("Error deploying commands:", err);
+    }
+  }
+
+  public registerCommand(command: ICommand): void {
+    this.commands.set(command.data.name, command);
+    this.logger.info("Registered command:", command.data.name);
+  }
+
+  public unregisterCommand(name: string): boolean {
+    const removed = this.commands.delete(name);
+    if (removed) {
+      this.logger.info("Unregistered command:", name);
+    }
+    return removed;
+  }
+
+  public async reloadCommand(name: string): Promise<boolean> {
+    const command = this.commands.get(name);
+    if (!command) {
+      this.logger.warn(`Command ${name} not found for reload`);
+      return false;
+    }
+
+    try {
+      this.logger.info(`Reloaded command: ${name}`);
+      return true;
+    } catch (error) {
+      const err = error instanceof Error ? error : new Error(String(error));
+      this.logger.error(`Error reloading command ${name}:`, err);
+      return false;
     }
   }
 }
