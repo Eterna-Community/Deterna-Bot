@@ -13,6 +13,8 @@ import {
 import { ServiceManager } from "./Services/manager";
 import type { BaseService } from "./Services";
 import { DatabaseService } from "./Services/Database/DatabaseService";
+import { TicketService } from "./Modules/Ticket/TicketService";
+import { setupTicketInteractions } from "./Modules/Ticket/TicketButtonHandler";
 
 @PerformanceMonitor()
 export class Bootstrap implements IBoot {
@@ -33,9 +35,6 @@ export class Bootstrap implements IBoot {
 
   public async onEnable(): Promise<void> {
     try {
-      // Init Our services
-      await this.registerServices();
-
       // Client initialisieren mit den nötigen Intents
       this.client = new Client({
         intents: [
@@ -97,6 +96,12 @@ export class Bootstrap implements IBoot {
 
       // Bot anmelden
       await this.client.login(config.token);
+
+      // Init Our services
+      await this.registerServices();
+
+      // Init Ticket Interactions
+      setupTicketInteractions(this.client);
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error));
       this.logger.error("Error during bot initialization:", err);
@@ -121,6 +126,7 @@ export class Bootstrap implements IBoot {
     try {
       const promises: Promise<void>[] = [
         this.serviceManager.register(new DatabaseService()),
+        this.serviceManager.register(new TicketService()),
       ];
 
       await Promise.allSettled(promises);
