@@ -1,5 +1,6 @@
 import {
   ActionRowBuilder,
+  GuildMember,
   MessageFlags,
   ModalBuilder,
   TextInputBuilder,
@@ -99,13 +100,16 @@ export class TicketButtonInteraction extends BaseEvent<"interactionCreate"> {
         return;
       }
 
-      const member = interaction.member as any;
+      const member = interaction.member as GuildMember;
       const isCreator = ticket.CreatedBy === user.id;
       const isStaff =
         member.roles.cache.has(config.ticket.permissions.supportRoleId) ||
         config.ticket.permissions.allowedRoles.some((roleId: string) =>
           member.roles.cache.has(roleId)
-        );
+        ) ||
+        config.moderation_roles.some((roleId: string) => {
+          return member.roles.cache.has(roleId);
+        });
 
       if (!isCreator && !isStaff) {
         await interaction.reply({
@@ -147,7 +151,10 @@ export class TicketButtonInteraction extends BaseEvent<"interactionCreate"> {
         member.roles.cache.has(config.ticket.permissions.supportRoleId) ||
         config.ticket.permissions.allowedRoles.some((roleId: string) =>
           member.roles.cache.has(roleId)
-        );
+        ) ||
+        config.moderation_roles.some((roleId: string) => {
+          return member.roles.cache.has(roleId);
+        });
 
       if (!isStaff) {
         await interaction.reply({
@@ -183,12 +190,15 @@ export class TicketButtonInteraction extends BaseEvent<"interactionCreate"> {
       const channelId = customId.replace("remove_user_", "");
 
       // Check if user has permission (staff only)
-      const member = interaction.member as any;
+      const member = interaction.member as GuildMember;
       const isStaff =
         member.roles.cache.has(config.ticket.permissions.supportRoleId) ||
         config.ticket.permissions.allowedRoles.some((roleId: string) =>
           member.roles.cache.has(roleId)
-        );
+        ) ||
+        config.moderation_roles.some((roleId: string) => {
+          return member.roles.cache.has(roleId);
+        });
 
       if (!isStaff) {
         await interaction.reply({

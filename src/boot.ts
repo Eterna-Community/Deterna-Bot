@@ -61,7 +61,7 @@ export class Bootstrap implements IBoot {
 
   public async registerService(): Promise<void> {
     const promises = [
-      this.serviceManager?.register(new DatabaseService()),
+      // this.serviceManager?.register(new DatabaseService()),
       this.serviceManager?.register(new TicketService()),
     ];
 

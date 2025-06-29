@@ -7,6 +7,7 @@ export interface Config {
   database: {
     url: string;
   };
+  moderation_roles: string[];
   ticket: ITicketConfiguration;
 }
 
@@ -64,6 +65,11 @@ export const config: Config = {
   database: {
     url: process.env.DATABASE_URL || "sqlite:./bot.db",
   },
+  moderation_roles: [
+    "1384243444062490661",
+    "1384243444062490660",
+    "1384243444062490658",
+  ],
   ticket: {
     ticketTypes: {
       general: {
