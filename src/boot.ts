@@ -8,8 +8,23 @@ import type { Logger } from "./logger";
 import { LoggerFactory } from "./logger/factory";
 import { TicketService } from "./modules/ticket/TicketService";
 import { DatabaseService } from "./services/database";
+import {
+  GitHubWebhookService,
+  type GitHubWebhookConfig,
+} from "./services/github";
 import { ServiceManager } from "./services/manager";
 import { PerformanceMonitor } from "./utils/performance";
+
+const githubWebhookConfig: GitHubWebhookConfig = {
+  port: 3000,
+  webhookSecret: process.env.GITHUB_WEBHOOK_SECRET!, // Aus .env
+  channelId: "1388974166740566168", // Discord Channel ID
+  allowedEvents: ["push", "pull_request", "issues", "release", "star"],
+  timeout: 15000,
+  priority: 1000,
+  dependencies: [],
+  restartOnError: true,
+};
 
 @PerformanceMonitor()
 export class Bootstrap implements IBoot {
@@ -63,6 +78,12 @@ export class Bootstrap implements IBoot {
     const promises = [
       // this.serviceManager?.register(new DatabaseService()),
       this.serviceManager?.register(new TicketService()),
+      this.serviceManager?.register(
+        new GitHubWebhookService(
+          this.getClient().getClient(),
+          githubWebhookConfig
+        )
+      ),
     ];
 
     await Promise.allSettled(promises);
