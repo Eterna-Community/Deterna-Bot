@@ -87,6 +87,7 @@ export class Bootstrap implements IBoot {
     ];
 
     await Promise.allSettled(promises);
+    await this.serviceManager?.start();
     this.logger.info("Services registered");
   }
 }

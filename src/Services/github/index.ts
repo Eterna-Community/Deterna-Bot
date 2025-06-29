@@ -5,6 +5,7 @@ import type { ServiceConfig } from "../types";
 import { BaseService } from "..";
 import type { Logger } from "../../logger";
 import { LoggerFactory } from "../../logger/factory";
+import { PerformanceMonitor } from "../../utils/performance";
 
 export interface GitHubWebhookConfig extends ServiceConfig {
   port: number;
@@ -12,7 +13,7 @@ export interface GitHubWebhookConfig extends ServiceConfig {
   channelId: string;
   allowedEvents: string[];
 }
-
+@PerformanceMonitor()
 export class GitHubWebhookService extends BaseService {
   public readonly identifier = "GitHubWebhookService";
   public config: GitHubWebhookConfig;
