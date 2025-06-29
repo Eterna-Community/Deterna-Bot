@@ -1,27 +1,61 @@
 import {
-  type Interaction,
   ActionRowBuilder,
-  Events,
+  MessageFlags,
   ModalBuilder,
   TextInputBuilder,
   TextInputStyle,
   type ButtonInteraction,
-  type Client,
+  type ClientEvents,
+  type Interaction,
 } from "discord.js";
-import {
-  defaultConfig,
-  type TicketType,
-} from "../../Config/TicketConfiguration";
-import { bootstrap } from "../../Index";
-import { TicketService } from "./TicketService";
+import { BaseEvent } from "../../events/types";
+import type { Logger } from "../../logger";
+import { LoggerFactory } from "../../logger/factory";
+import { TicketHandler } from "../ticket/TicketHandler";
+import { config, type TicketType } from "../../config";
+import { bootstrap } from "../..";
+import { TicketService } from "../ticket/TicketService";
+import type { TicketCache } from "../ticket/TicketCache";
 
-export class TicketButtonHandler {
-  private ticketService: TicketService;
+export class TicketButtonInteraction extends BaseEvent<"interactionCreate"> {
+  public readonly name = "interactionCreate";
+
+  private logger: Logger = LoggerFactory.create("TicketButtonInteraction");
+  private ticketHandler: TicketHandler;
+  private ticketCache: TicketCache;
 
   constructor() {
-    this.ticketService = bootstrap
-      .getServiceManager()
-      .getService<TicketService>("ticket-service")!;
+    super();
+    this.ticketHandler = new TicketHandler();
+    this.ticketCache = this.ticketHandler.getTicketCache()!;
+  }
+
+  public async execute(interaction: Interaction): Promise<void> {
+    try {
+      if (interaction.isButton()) {
+        if (
+          interaction.customId.startsWith("ticket_") ||
+          interaction.customId.startsWith("close_ticket_") ||
+          interaction.customId.startsWith("add_user_") ||
+          interaction.customId.startsWith("remove_user_")
+        ) {
+          await this.handleButtonInteraction(interaction);
+        }
+      }
+
+      if (interaction.isModalSubmit()) {
+        if (
+          interaction.customId.startsWith("close_reason_") ||
+          interaction.customId.startsWith("add_user_modal_") ||
+          interaction.customId.startsWith("remove_user_modal_")
+        ) {
+          await this.handleModalSubmit(interaction);
+        }
+      }
+    } catch (error) {
+      const err = error instanceof Error ? error : new Error(String(error));
+      this.logger.error("Error executing event:", err);
+    }
   }
 
   async handleButtonInteraction(interaction: ButtonInteraction) {
@@ -31,9 +65,9 @@ export class TicketButtonHandler {
     if (customId.startsWith("ticket_")) {
       const ticketType = customId.replace("ticket_", "") as TicketType;
 
-      await interaction.deferReply({ ephemeral: true });
+      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
-      const result = await this.ticketService.createTicket(
+      const result = await this.ticketHandler.createTicket(
         user.id,
         ticketType,
         guild!
@@ -56,7 +90,7 @@ export class TicketButtonHandler {
       const channelId = customId.replace("close_ticket_", "");
 
       // Check if user has permission to close (creator or staff)
-      const ticket = this.ticketService.getTicketByChannelId(channelId);
+      const ticket = this.ticketCache?.getTicket(channelId);
       if (!ticket) {
         await interaction.reply({
           content: "❌ Ticket not found.",
@@ -68,8 +102,8 @@ export class TicketButtonHandler {
       const member = interaction.member as any;
       const isCreator = ticket.CreatedBy === user.id;
       const isStaff =
-        member.roles.cache.has(defaultConfig.permissions.supportRoleId) ||
-        defaultConfig.permissions.allowedRoles.some((roleId: string) =>
+        member.roles.cache.has(config.ticket.permissions.supportRoleId) ||
+        config.ticket.permissions.allowedRoles.some((roleId: string) =>
           member.roles.cache.has(roleId)
         );
 
@@ -110,8 +144,8 @@ export class TicketButtonHandler {
       // Check if user has permission (staff only)
       const member = interaction.member as any;
       const isStaff =
-        member.roles.cache.has(defaultConfig.permissions.supportRoleId) ||
-        defaultConfig.permissions.allowedRoles.some((roleId: string) =>
+        member.roles.cache.has(config.ticket.permissions.supportRoleId) ||
+        config.ticket.permissions.allowedRoles.some((roleId: string) =>
           member.roles.cache.has(roleId)
         );
 
@@ -151,8 +185,8 @@ export class TicketButtonHandler {
       // Check if user has permission (staff only)
       const member = interaction.member as any;
       const isStaff =
-        member.roles.cache.has(defaultConfig.permissions.supportRoleId) ||
-        defaultConfig.permissions.allowedRoles.some((roleId: string) =>
+        member.roles.cache.has(config.ticket.permissions.supportRoleId) ||
+        config.ticket.permissions.allowedRoles.some((roleId: string) =>
           member.roles.cache.has(roleId)
         );
 
@@ -199,7 +233,7 @@ export class TicketButtonHandler {
 
       await interaction.deferReply({ ephemeral: true });
 
-      const result = await this.ticketService.closeTicket(
+      const result = await this.ticketHandler.closeTicket(
         channelId,
         interaction.user.id,
         reason
@@ -231,7 +265,7 @@ export class TicketButtonHandler {
         // Verify user exists
         const user = await interaction.client.users.fetch(userId);
 
-        const result = await this.ticketService.addUserToTicket(
+        const result = await this.ticketHandler.addUserToTicket(
           channelId,
           userId,
           interaction.user.id
@@ -268,7 +302,7 @@ export class TicketButtonHandler {
         // Verify user exists
         const user = await interaction.client.users.fetch(userId);
 
-        const result = await this.ticketService.removeUserFromTicket(
+        const result = await this.ticketHandler.removeUserFromTicket(
           channelId,
           userId,
           interaction.user.id
@@ -291,40 +325,4 @@ export class TicketButtonHandler {
       return;
     }
   }
-}
-
-export function setupTicketInteractions(client: Client) {
-  const ticketHandler = new TicketButtonHandler();
-
-  client.on(Events.InteractionCreate, async (interaction: Interaction) => {
-    try {
-      // Handle Button Interactions
-      if (interaction.isButton()) {
-        // Check if it's a ticket-related button
-        if (
-          interaction.customId.startsWith("ticket_") ||
-          interaction.customId.startsWith("close_ticket_") ||
-          interaction.customId.startsWith("add_user_") ||
-          interaction.customId.startsWith("remove_user_")
-        ) {
-          await ticketHandler.handleButtonInteraction(interaction);
-        }
-      }
-
-      // Handle Modal Submissions
-      if (interaction.isModalSubmit()) {
-        if (
-          interaction.customId.startsWith("close_reason_") ||
-          interaction.customId.startsWith("add_user_modal_") ||
-          interaction.customId.startsWith("remove_user_modal_")
-        ) {
-          await ticketHandler.handleModalSubmit(interaction);
-        }
-      }
-    } catch (error) {
-      console.error("Error handling interaction:", error);
-    }
-  });
-
-  console.log("✅ Ticket interaction handlers registered");
 }

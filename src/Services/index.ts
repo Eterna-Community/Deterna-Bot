@@ -1,137 +1,141 @@
-import type { Bootstrap } from "../Bootstrap";
-import { bootstrap } from "../Index";
-import type { IBoot } from "../Interfaces/IBoot";
-import type { Logger } from "../Logger/Index";
-import { LoggerFactory } from "../Logger/LoggerFactory";
-import { ServiceStatus, type ServiceConfig } from "./data";
-import { ServiceManager } from "./manager";
+import { bootstrap } from "..";
+import type { IBoot } from "../interfaces/IBoot";
+import type { Logger } from "../logger";
+import { LoggerFactory } from "../logger/factory";
+import { ServiceStatus, type ServiceConfig } from "./types";
 
 export abstract class BaseService {
-  public abstract readonly serviceIdentifier: string;
-  public abstract readonly config: ServiceConfig;
+  public abstract readonly identifier: string;
+  public abstract config: ServiceConfig;
+  public abstract logger: Logger;
 
-  // Getting Bootstrap Class at the Beginning to reduce the amount of calls
-  private bootstrap: IBoot = bootstrap;
+  // Private Fields
+  private readonly bootstrap: IBoot;
 
-  public _status: ServiceStatus = ServiceStatus.DISABLED;
-  public _lastError: Error | null = null;
-  private _startTime: number | null = null;
+  public status: ServiceStatus = ServiceStatus.DISABLED;
+  public lastError: Error | null = null;
+  public startTime: number | null = null;
 
-  /**
-   * Abstract methods
-   */
-  protected abstract onServiceEnable(): Promise<void>;
-  protected abstract onServiceDisable(): Promise<void>;
-  protected abstract onHealthCheck(): Promise<boolean>;
-
-  public get status(): ServiceStatus {
-    return this._status;
+  // Constructor
+  constructor() {
+    this.bootstrap = bootstrap;
   }
 
-  public get serviceManager(): ServiceManager {
-    return this.bootstrap.getServiceManager();
+  // Getter
+  public get serviceStatus(): ServiceStatus {
+    return this.status;
   }
 
   public get uptime(): number {
-    return this._startTime ? Date.now() - this._startTime : 0;
+    return this.startTime ? Date.now() - this.startTime : 0;
   }
 
   public get isHealthy(): boolean {
-    return this.status === ServiceStatus.ENABLED && !this._lastError;
+    return this.status === ServiceStatus.ENABLED && !this.lastError;
   }
-  /**
-   * Internal Methods to Enable or Disable the Service
-   */
-  public async onEnable(): Promise<void> {
-    if (this._status !== ServiceStatus.DISABLED) {
-      throw new Error(
-        `[AntiCheat][${this.serviceIdentifier}] this service couldnt be Started because it is already enabled!`
+
+  public async onEnableService(): Promise<void> {
+    if (this.status !== ServiceStatus.DISABLED) {
+      this.logger.warn(
+        `The Service ${this.identifier} is either already started, or starting...`
       );
+      this.lastError = new Error(
+        `Service ${this.identifier} is already started`
+      );
+      return;
     }
 
-    this._status = ServiceStatus.ENABLING;
-    this._lastError = null;
+    this.status = ServiceStatus.ENABLING;
+    this.lastError = null;
 
     try {
       await this.withTimeout(
         this.onServiceEnable(),
-        this.config.timeout,
-        `Service ${this.serviceIdentifier} enable timeout`
+        this.config.timeout ?? 10000,
+        `Service ${this.identifier} enable timeout`
       );
-      this._status = ServiceStatus.ENABLED;
-      this._startTime = Date.now();
     } catch (error) {
-      this._status = ServiceStatus.ERROR;
-      this._lastError =
+      this.status = ServiceStatus.ERROR;
+      this.lastError =
         error instanceof Error ? error : new Error(String(error));
-      throw error;
+      this.logger.error(
+        `Error while enabling Service ${this.identifier}:`,
+        this.lastError
+      );
+    } finally {
+      this.status = ServiceStatus.ENABLED;
+      this.startTime = Date.now();
     }
   }
 
-  /**
-   * Internal Methods to Enable or Disable the Service
-   */
-  public async onDisable(): Promise<void> {
-    if (this._status === ServiceStatus.DISABLED) {
+  public async onDisableService(): Promise<void> {
+    if (this.status === ServiceStatus.DISABLED) {
+      this.logger.warn(
+        `The Service ${this.identifier} is either already stopped, or stopping...`
+      );
+      this.lastError = new Error(
+        `Service ${this.identifier} is already stopped`
+      );
       return;
     }
 
-    this._status = ServiceStatus.DISABLING;
+    this.status = ServiceStatus.DISABLING;
+    this.lastError = null;
 
     try {
       await this.withTimeout(
         this.onServiceDisable(),
-        this.config.timeout,
-        `Service ${this.serviceIdentifier} disable timeout`
+        this.config.timeout ?? 10000,
+        `Service ${this.identifier} disable timeout`
       );
     } catch (error) {
-      this._lastError =
+      this.status = ServiceStatus.ERROR;
+      this.lastError =
         error instanceof Error ? error : new Error(String(error));
-      throw error;
+      this.logger.error(
+        `Error while disabling Service ${this.identifier}:`,
+        this.lastError
+      );
     } finally {
-      this._status = ServiceStatus.DISABLED;
-      this._startTime = null;
+      this.status = ServiceStatus.DISABLED;
+      this.startTime = null;
     }
   }
 
-  /**
-   * Checks if the given Service is healthy
-   * @returns {Promise<boolean>}
-   */
   public async healthCheck(): Promise<boolean> {
-    if (this._status !== ServiceStatus.ENABLED) {
+    if (this.status !== ServiceStatus.ENABLED) {
       return false;
     }
 
     try {
       return await this.withTimeout(
         this.onHealthCheck(),
-        5000, // 5s Health Check Timeout
-        `Health check timeout for ${this.serviceIdentifier}`
+        5000,
+        `Health check timeout for ${this.identifier}`
       );
     } catch (error) {
-      this._lastError =
+      this.lastError =
         error instanceof Error ? error : new Error(String(error));
+      this.logger.error("Health check failed:", this.lastError);
       return false;
     }
   }
 
-  /**
-   * Method to run a promise with a timeout
-   * @param promise
-   * @param timeoutMs
-   * @param timeoutMessage
-   * @returns
-   */
+  // Private Methods
   private async withTimeout<T>(
     promise: Promise<T>,
     timeoutMs: number,
-    timeoutMessage: string
+    message: string
   ): Promise<T> {
     const timeoutPromise = new Promise<never>((_, reject) => {
-      setTimeout(() => reject(new Error(timeoutMessage)), timeoutMs);
+      setTimeout(() => reject(new Error(message)), timeoutMs);
     });
 
     return Promise.race([promise, timeoutPromise]);
   }
+
+  // Abstract Methods
+  protected abstract onServiceEnable(): Promise<void>;
+  protected abstract onServiceDisable(): Promise<void>;
+  protected abstract onHealthCheck(): Promise<boolean>;
 }

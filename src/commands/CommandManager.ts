@@ -1,16 +1,13 @@
 import { Collection, REST, Routes } from "discord.js";
-import { BaseCommand, type ICommand } from "../Interfaces/ICommand";
-import { config } from "../Config/Config";
+import { PerformanceMonitor } from "../utils/performance";
+import { BaseCommand, type ICommand } from "./types";
+import type { Logger } from "../logger";
+import { LoggerFactory } from "../logger/factory";
+import { LogTarget } from "../logger/types";
 import { Glob } from "bun";
-import type { Logger } from "../Logger/Index";
-import { LoggerFactory } from "../Logger/LoggerFactory";
-import { LogTarget } from "../Logger/Types";
-import {
-  PerformanceMonitor,
-  PerformanceMonitorWithStats,
-} from "../Utils/Performance";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
+import { config } from "../config";
 
 @PerformanceMonitor({
   minThreshold: 50,
@@ -19,26 +16,26 @@ import { pathToFileURL } from "node:url";
   excludeMethods: ["toString"],
   colorize: true,
 })
-export class CommandHandler {
+export class CommandManager {
   public commands: Collection<string, ICommand>;
   private logger: Logger;
 
   constructor() {
     this.commands = new Collection();
-    this.logger = LoggerFactory.create("CommandHandler", [LogTarget.CONSOLE]);
+    this.logger = LoggerFactory.create("CommandManager", [LogTarget.CONSOLE]);
   }
 
   public async loadCommands(): Promise<void> {
     const glob = new Glob("*.{ts}");
     const commandFiles = await Array.fromAsync(
       glob.scan({
-        cwd: "./src/Modules/Commands",
+        cwd: "./src/modules/commands",
       })
     );
 
     for (const file of commandFiles) {
       try {
-        const absolutePath = path.resolve("./src/Modules/Commands", file);
+        const absolutePath = path.resolve("./src/modules/commands", file);
         const fileUrl = pathToFileURL(absolutePath).href;
 
         const commandModule = await import(fileUrl);

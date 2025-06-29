@@ -4,7 +4,7 @@ import {
   LogTarget,
   type LogEntry,
   type LoggerConfig,
-} from "./Types";
+} from "./types";
 import fs from "node:fs";
 import path from "node:path";
 

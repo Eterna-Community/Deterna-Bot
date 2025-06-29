@@ -1,3 +1,12 @@
+import type { Logger } from "../logger";
+import { LoggerFactory } from "../logger/factory";
+import { LogTarget } from "../logger/types";
+
+let logger: Logger = LoggerFactory.create("Performance", [
+  LogTarget.FILE,
+  LogTarget.CONSOLE,
+]);
+
 export interface PerformanceConfig {
   enabled?: boolean;
   logToConsole?: boolean;
@@ -67,14 +76,14 @@ function defaultLogger(info: PerformanceInfo, config: PerformanceConfig): void {
     logMessage += ` ${dim}(async)${reset}`;
   }
 
-  console.log(logMessage);
+  logger.info(logMessage);
 
   if (config.includeArguments && info.arguments && info.arguments.length > 0) {
-    console.log(`${dim}  ↳ Args:${reset}`, info.arguments);
+    logger.info(`${dim}  ↳ Args:${reset}`, info.arguments);
   }
 
   if (config.includeReturnValue && info.returnValue !== undefined) {
-    console.log(`${dim}  ↳ Return:${reset}`, info.returnValue);
+    logger.info(`${dim}  ↳ Return:${reset}`, info.returnValue);
   }
 }
 
@@ -389,8 +398,8 @@ export class PerformanceStats {
   }
 
   static printStats(): void {
-    console.log("\n📊 Performance Statistics:");
-    console.log("═".repeat(80));
+    logger.info("\n📊 Performance Statistics:");
+    logger.info("═".repeat(80));
 
     const sortedStats = Array.from(this.stats.entries()).sort(
       ([, a], [, b]) => b.totalTime - a.totalTime
@@ -400,23 +409,23 @@ export class PerformanceStats {
       const color = getColorByTime(stats.avgTime);
       const trend = this.getTrend(stats.recentTimes);
 
-      console.log(`${Colors.bright}${method}:${Colors.reset}`);
-      console.log(
+      logger.info(`${Colors.bright}${method}:${Colors.reset}`);
+      logger.info(
         `  📞 Calls: ${
           stats.totalCalls
         } | 📊 Avg: ${color}${stats.avgTime.toFixed(2)}ms${
           Colors.reset
         } ${trend}`
       );
-      console.log(
+      logger.info(
         `  ⚡ Min: ${stats.minTime.toFixed(
           2
         )}ms | 🔥 Max: ${stats.maxTime.toFixed(
           2
         )}ms | ⏱️ Total: ${stats.totalTime.toFixed(2)}ms`
       );
-      console.log(`  🕐 Last: ${stats.lastCalled}`);
-      console.log("");
+      logger.info(`  🕐 Last: ${stats.lastCalled}`);
+      logger.info("");
     }
   }
 

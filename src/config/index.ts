@@ -1,3 +1,15 @@
+import { ActionRowBuilder, ButtonBuilder, ButtonStyle } from "discord.js";
+
+export interface Config {
+  token: string;
+  guildId: string;
+  clientId: string;
+  database: {
+    url: string;
+  };
+  ticket: ITicketConfiguration;
+}
+
 export interface ITicket {
   ChannelId: string;
   Users: string[];
@@ -45,57 +57,66 @@ export interface ITicketConfiguration {
   };
 }
 
-export const defaultConfig: ITicketConfiguration = {
-  ticketTypes: {
-    general: {
-      name: "General Support",
-      categoryId: "1388555994639892582",
-      emoji: "📩",
-      defaultMessage: "Please describe your issue in detail.",
-    },
-    bug: {
-      name: "Bug Report",
-      categoryId: "1388556031876927629",
-      emoji: "🐛",
-      defaultMessage: "Please explain the bug you encountered.",
-    },
-    feature: {
-      name: "Feature Request",
-      categoryId: "1388556062193619084",
-      emoji: "✨",
-      defaultMessage: "Describe the feature you'd like to see.",
-    },
-    application: {
-      name: "Application",
-      categoryId: "1388556089355927622",
-      emoji: "📝",
-      defaultMessage: "Please fill out the application form.",
-    },
-    other: {
-      name: "Other",
-      categoryId: "1388556123094913204",
-      emoji: "❓",
-      defaultMessage: "Please describe your request.",
-    },
+export const config: Config = {
+  token: process.env.DISCORD_TOKEN || "",
+  guildId: process.env.GUILD_ID || "",
+  clientId: process.env.CLIENT_ID || "",
+  database: {
+    url: process.env.DATABASE_URL || "sqlite:./bot.db",
   },
-  channelConfig: {
-    logChannelId: "1384243445119586427",
-    ticketArchiveCategoryId: "1388556761518182500",
-    messageChannelId: "1384243445488681060",
-  },
-  permissions: {
-    supportRoleId: "1384243444062490658",
-    allowedRoles: ["1384243444062490656"],
-    alertRoleId: "1388556367035498688",
-    blacklistedRoles: [],
-  },
-  settings: {
-    ticketNamingPattern: "ticket-{username}-{ticketType}",
-    autoCloseTimeoutMinutes: 60,
-    allowMultipleTickets: false,
+  ticket: {
+    ticketTypes: {
+      general: {
+        name: "General Support",
+        categoryId: "1388555994639892582",
+        emoji: "📩",
+        defaultMessage: "Please describe your issue in detail.",
+      },
+      bug: {
+        name: "Bug Report",
+        categoryId: "1388556031876927629",
+        emoji: "🐛",
+        defaultMessage: "Please explain the bug you encountered.",
+      },
+      feature: {
+        name: "Feature Request",
+        categoryId: "1388556062193619084",
+        emoji: "✨",
+        defaultMessage: "Describe the feature you'd like to see.",
+      },
+      application: {
+        name: "Application",
+        categoryId: "1388556089355927622",
+        emoji: "📝",
+        defaultMessage: "Please fill out the application form.",
+      },
+      other: {
+        name: "Other",
+        categoryId: "1388556123094913204",
+        emoji: "❓",
+        defaultMessage: "Please describe your request.",
+      },
+    },
+    channelConfig: {
+      logChannelId: "1384243445119586427",
+      ticketArchiveCategoryId: "1388556761518182500",
+      messageChannelId: "1384243445488681060",
+    },
+    permissions: {
+      supportRoleId: "1384243444062490658",
+      allowedRoles: ["1384243444062490656"],
+      alertRoleId: "1388556367035498688",
+      blacklistedRoles: [],
+    },
+    settings: {
+      ticketNamingPattern: "ticket-{username}-{ticketType}",
+      autoCloseTimeoutMinutes: 60,
+      allowMultipleTickets: false,
+    },
   },
 };
 
+// Ticket Specific Config, need to move it
 export const ticketSelectionEmbed = {
   title: "🎫 Create a Support Ticket",
   description:
@@ -117,15 +138,13 @@ export const createTicketOpenedEmbed = (
     `Hello <@${username}>,\n\n` +
     `Thank you for opening a **${ticketTypeName}** ticket. A member of our support team will be with you shortly.\n\n` +
     `In the meantime, please provide as much detail as possible about your issue/request.\n\n` +
-    `<@${defaultConfig.permissions.alertRoleId}>`,
+    `<@${config.ticket.permissions.alertRoleId}>`,
   color: 0x2ecc71, // Green
   footer: {
     text: "Eterna - Support Team",
   },
   timestamp: new Date().toISOString(),
 });
-
-import { ActionRowBuilder, ButtonBuilder, ButtonStyle } from "discord.js";
 
 export const ticketTypeButtons =
   new ActionRowBuilder<ButtonBuilder>().addComponents(

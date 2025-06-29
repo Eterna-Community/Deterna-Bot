@@ -1,26 +1,17 @@
-import type {
-  ButtonInteraction,
-  Client,
-  ClientEvents,
-  Events,
-  ModalSubmitInteraction,
-} from "discord.js";
+import type { Client, ClientEvents } from "discord.js";
+import { PerformanceMonitor } from "../utils/performance";
+import { LoggerFactory } from "../logger/factory";
+import type { IEvent } from "./types";
+import type { Logger } from "../logger";
 import { Glob } from "bun";
-import {
-  PerformanceMonitor,
-  PerformanceMonitorWithStats,
-} from "../Utils/Performance";
-import type { IEvent } from "../Interfaces/IEvent";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
-import type { Logger } from "../Logger/Index";
-import { LoggerFactory } from "../Logger/LoggerFactory";
 
 @PerformanceMonitor()
-export class EventHandler {
+export class EventManager {
   private client: Client;
   public events: IEvent[];
-  private logger: Logger = LoggerFactory.create("EventHandler");
+  private logger: Logger = LoggerFactory.create("EventManager");
 
   constructor(client: Client) {
     this.client = client;
@@ -33,7 +24,7 @@ export class EventHandler {
     const glob = new Glob("*.{ts,js}");
     const eventFiles = await Array.fromAsync(
       glob.scan({
-        cwd: "./src/Modules/Events",
+        cwd: "./src/modules/events",
       })
     );
 
@@ -41,7 +32,7 @@ export class EventHandler {
 
     for (const file of eventFiles) {
       try {
-        const absolutePath = path.resolve("./src/Modules/Events", file);
+        const absolutePath = path.resolve("./src/modules/events", file);
         const fileUrl = pathToFileURL(absolutePath).href;
         const eventModule = await import(fileUrl);
 

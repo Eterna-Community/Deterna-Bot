@@ -12,13 +12,15 @@ export enum LogTarget {
   DISCORD = "discord",
   DATABASE = "database",
 }
+
 export interface LogEntry {
   timestamp: string;
   level: LogLevel;
   prefix: string;
   message: string;
   data?: any;
-  stack?: string;
+  errorMessage?: string;
+  stack?: string | Error["stack"];
 }
 
 export interface LoggerConfig {
@@ -65,3 +67,5 @@ export const Colors = {
   white: "\x1b[37m",
   gray: "\x1b[90m",
 };
+
+export const LogLevelStrings = ["DEBUG", "INFO", "WARN", "ERROR", "FATAL"];

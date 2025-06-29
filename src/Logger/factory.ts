@@ -1,12 +1,5 @@
-import { Logger } from "./Index";
-import {
-  LogLevel,
-  LogTarget,
-  type DiscordLogConfig,
-  type FileLogConfig,
-  type FormatConfig,
-  type LoggerConfig,
-} from "./Types";
+import { Logger } from ".";
+import { LogLevel, LogTarget, type LoggerConfig } from "./types";
 
 export class LoggerFactory {
   private static instances: Map<string, Logger> = new Map();
@@ -67,44 +60,5 @@ export class LoggerFactory {
 
   public static getInstances(): string[] {
     return Array.from(this.instances.keys());
-  }
-}
-
-export class LoggerUtils {
-  public static createFileConfig(
-    options: Partial<FileLogConfig> = {}
-  ): FileLogConfig {
-    return {
-      directory: "./logs",
-      filename: `app_${new Date().toISOString().split("T")[0]}.log`,
-      maxFileSize: 50, // 50MB
-      maxFiles: 5,
-      dateRotation: true,
-      ...options,
-    };
-  }
-
-  public static createDiscordConfig(
-    webhookUrl: string,
-    options: Partial<DiscordLogConfig> = {}
-  ): DiscordLogConfig {
-    return {
-      webhookUrl,
-      username: "Application Logger",
-      minLevel: LogLevel.WARN,
-      ...options,
-    };
-  }
-
-  public static createFormatConfig(
-    options: Partial<FormatConfig> = {}
-  ): FormatConfig {
-    return {
-      colorized: true,
-      includeStack: false,
-      dateFormat: "de-DE",
-      timezone: "Europe/Berlin",
-      ...options,
-    };
   }
 }

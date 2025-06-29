@@ -1,13 +1,13 @@
 import { BaseService } from "..";
-import type { ServiceConfig } from "../data";
-import type { Logger } from "../../Logger/Index";
-import { LoggerFactory } from "../../Logger/LoggerFactory";
-import { PerformanceMonitor } from "../../Utils/Performance";
 import { PrismaClient } from "../../../prisma/generated/prisma";
+import type { Logger } from "../../logger";
+import { LoggerFactory } from "../../logger/factory";
+import { PerformanceMonitor } from "../../utils/performance";
+import type { ServiceConfig } from "../types";
 
 @PerformanceMonitor()
 export class DatabaseService extends BaseService {
-  public readonly serviceIdentifier: string = "database";
+  public readonly identifier: string = "database";
   public readonly config: ServiceConfig = {
     priority: 1000,
     dependencies: [],
@@ -16,7 +16,7 @@ export class DatabaseService extends BaseService {
   };
 
   private prisma: PrismaClient;
-  private logger: Logger = LoggerFactory.create("DatabaseService");
+  public logger: Logger = LoggerFactory.create("DatabaseService");
 
   constructor() {
     super();
@@ -64,6 +64,7 @@ export class DatabaseService extends BaseService {
   public async executeInTransaction<T>(
     fn: (prisma: PrismaClient) => Promise<T>
   ): Promise<T> {
+    ///@ts-expect-error
     return await this.prisma.$transaction(fn);
   }
 }
