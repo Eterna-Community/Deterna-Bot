@@ -6,6 +6,7 @@ import {
   type Client,
   type SlashCommandBuilder,
 } from "discord.js";
+import { bootstrap } from "..";
 
 export interface ICommand {
   data: SlashCommandBuilder;
@@ -78,7 +79,7 @@ export abstract class BaseCommand implements ICommand {
   public client: Client;
 
   constructor() {
-    this.client = bootstrap.getClient();
+    this.client = bootstrap.getClient().client!;
   }
 
   protected async reply(
